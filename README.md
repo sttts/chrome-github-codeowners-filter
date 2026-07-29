@@ -14,15 +14,40 @@ A small Chrome extension that filters changed files on a GitHub pull request’s
 - detects direct `@username` ownership automatically
 - works with GitHub’s dynamic pull request navigation and lazily loaded diffs
 
-## Local installation
+## Install from GitHub
+
+### Download the packaged extension
+
+1. Open the [latest release](https://github.com/sttts/chrome-github-codeowners-filter/releases/latest).
+2. Download `chrome-github-codeowners-filter-<version>.zip`.
+3. Extract the ZIP archive.
+4. Open `chrome://extensions` in Chrome.
+5. Enable **Developer mode** in the top-right corner.
+6. Choose **Load unpacked**.
+7. Select the extracted directory containing `manifest.json`.
+8. Open a pull request and switch to the **Files changed** tab.
+
+### Clone the repository
+
+```sh
+git clone https://github.com/sttts/chrome-github-codeowners-filter.git
+```
 
 1. Open `chrome://extensions` in Chrome.
 2. Enable **Developer mode** in the top-right corner.
 3. Choose **Load unpacked**.
-4. Select this repository directory.
+4. Select the cloned `chrome-github-codeowners-filter` directory.
 5. Open a pull request and switch to the **Files changed** tab.
 
 After changing the extension, press its reload button on `chrome://extensions`, then reload the pull request page.
+
+## Package locally
+
+```sh
+npm run package
+```
+
+The archive is written to `dist/chrome-github-codeowners-filter-<version>.zip`. It contains only the extension manifest and runtime sources.
 
 ## Usage
 

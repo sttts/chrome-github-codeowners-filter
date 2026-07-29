@@ -4,6 +4,7 @@
   "private": true,
   "description": "Chrome extension for filtering GitHub pull request files by CODEOWNER groups.",
   "scripts": {
+    "package": "bash scripts/package.sh",
     "test": "node --test tests/*.test.cjs"
   }
 }
