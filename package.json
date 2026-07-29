@@ -1,6 +1,6 @@
 {
   "name": "chrome-github-codeowners-filter",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Chrome extension for filtering GitHub pull request files by CODEOWNER groups.",
   "scripts": {

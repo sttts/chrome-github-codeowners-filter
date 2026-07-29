@@ -5,7 +5,7 @@
     matchesOwnerFilter,
     ownersForPath,
     ownersFromLabel,
-    ownersFromOwnedByYouLabel,
+    ownersOwnedByCurrentUser,
     ownersFromTreeValue,
     parse,
     ruleForPath
@@ -43,8 +43,7 @@
     files: [],
     selectedOwners: new Set(),
     derivedOwners: new Set(),
-    onlyMineActive: false,
-    currentUser: null,
+    ownershipLabels: new Set(),
     baseRef: "HEAD",
     codeownersSource: null,
     observer: null,
@@ -61,13 +60,6 @@
     const match = location.pathname.match(/^\/([^/]+)\/([^/]+)\/pull\/\d+\/(?:files|changes)(?:\/|$)/);
 
     return match ? { owner: match[1], name: match[2] } : null;
-  }
-
-  function currentUser() {
-    return document.querySelector('meta[name="user-login"]')?.content
-      || document.querySelector('meta[name="octolytics-actor-login"]')?.content
-      || document.querySelector('[data-login]')?.dataset.login
-      || null;
   }
 
   function baseRef() {
@@ -399,10 +391,16 @@
 
   function deriveCurrentUserOwners() {
     for (const badge of document.querySelectorAll(OWNER_BADGE_SELECTOR)) {
-      for (const owner of ownersFromOwnedByYouLabel(badge.getAttribute("aria-label"))) {
-        state.derivedOwners.add(normalizedOwner(owner));
+      const label = badge.getAttribute("aria-label");
+
+      if (label) {
+        state.ownershipLabels.add(label);
       }
     }
+
+    state.derivedOwners = new Set(
+      ownersOwnedByCurrentUser(state.ownershipLabels).map(normalizedOwner)
+    );
   }
 
   function displayOwner(owner) {
@@ -446,10 +444,6 @@
 
     state.files = files;
     deriveCurrentUserOwners();
-
-    if (state.onlyMineActive) {
-      state.selectedOwners = new Set(allOwners().map(([owner]) => owner).filter(isMine));
-    }
   }
 
   function allOwners() {
@@ -466,12 +460,6 @@
       if (right === OWNERLESS) return -1;
       return left.localeCompare(right);
     });
-  }
-
-  function isMine(owner) {
-    const directOwner = state.currentUser && owner === `@${state.currentUser.toLocaleLowerCase()}`;
-
-    return directOwner || state.derivedOwners.has(owner);
   }
 
   function visibleByFilter(file) {
@@ -901,22 +889,23 @@
   }
 
   function setSelectedOwners(owners) {
-    state.onlyMineActive = false;
     state.selectedOwners = new Set(owners);
     render();
   }
 
   function selectOnlyMine() {
-    state.onlyMineActive = true;
-    state.selectedOwners = new Set(allOwners().map(([owner]) => owner).filter(isMine));
+    const availableOwners = new Set(allOwners().map(([owner]) => owner));
+    state.selectedOwners = new Set(
+      [...state.derivedOwners].filter((owner) => availableOwners.has(owner))
+    );
+    document.querySelector(`#${UI_ID} .ghco-owner-filter`)?.removeAttribute("open");
+    state.menuOpen = false;
     render();
   }
 
   function ownerChip(owner, count) {
     const selected = state.selectedOwners.has(owner);
     const chip = button(`${displayOwner(owner)} ${count}`, "ghco-chip", () => {
-      state.onlyMineActive = false;
-
       if (selected) {
         state.selectedOwners.delete(owner);
       } else {
@@ -1130,13 +1119,13 @@
     const allButton = button("All", "ghco-action", () => setSelectedOwners([]));
     allButton.classList.toggle("ghco-action-selected", state.selectedOwners.size === 0);
 
-    const mine = [...new Set(owners.map(([owner]) => owner).filter(isMine))];
+    const availableOwners = new Set(owners.map(([owner]) => owner));
+    const mine = [...state.derivedOwners].filter((owner) => availableOwners.has(owner));
     const mineButton = button("Only mine", "ghco-action", selectOnlyMine);
-    mineButton.classList.toggle("ghco-action-selected", state.onlyMineActive);
     mineButton.disabled = mine.length === 0;
     mineButton.title = mine.length
-      ? `Detected from GitHub: ${mine.map(displayOwner).join(", ")}`
-      : "GitHub does not mark you as an owner of any file in this pull request.";
+      ? `Select detected groups: ${mine.map(displayOwner).join(", ")}`
+      : "GitHub does not unambiguously identify one of your groups in this pull request.";
     const source = document.createElement("span");
     source.className = "ghco-source";
     source.textContent = state.codeownersSource
@@ -1228,7 +1217,7 @@
     state.files = [];
     state.selectedOwners.clear();
     state.derivedOwners.clear();
-    state.onlyMineActive = false;
+    state.ownershipLabels.clear();
     state.menuOpen = false;
     state.toolbarAnchor = null;
     state.toolbarRoot = null;
@@ -1239,7 +1228,6 @@
       return;
     }
 
-    state.currentUser = currentUser();
     state.baseRef = baseRef();
     const codeowners = await fetchCodeowners();
     state.codeownersSource = codeowners?.path || null;

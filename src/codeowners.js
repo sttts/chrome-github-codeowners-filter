@@ -140,8 +140,29 @@
     return String(label).match(/@[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)?/g) || [];
   }
 
-  function ownersFromOwnedByYouLabel(label) {
-    return /\bowned by you\b/i.test(String(label)) ? ownersFromLabel(label) : [];
+  function ownersOwnedByCurrentUser(labels) {
+    const positiveOwnerSets = [];
+    const rejectedOwners = new Set();
+
+    for (const label of labels) {
+      const owners = ownersFromLabel(label);
+
+      if (/\bowned by you\b/i.test(String(label))) {
+        if (owners.length) {
+          positiveOwnerSets.push(owners);
+        }
+      } else if (/\bowned by\b/i.test(String(label))) {
+        for (const owner of owners) {
+          rejectedOwners.add(owner);
+        }
+      }
+    }
+
+    return [...new Set(positiveOwnerSets.flatMap((owners) => {
+      const candidates = owners.filter((owner) => !rejectedOwners.has(owner));
+
+      return candidates.length === 1 ? candidates : [];
+    }))];
   }
 
   function ownersFromTreeValue(value) {
@@ -158,7 +179,7 @@
     compilePattern,
     matchesOwnerFilter,
     ownersFromLabel,
-    ownersFromOwnedByYouLabel,
+    ownersOwnedByCurrentUser,
     ownersFromTreeValue,
     ownersForPath,
     parse,

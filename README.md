@@ -10,7 +10,7 @@ A small Chrome extension that filters changed files on a GitHub pull request’s
 - filters the file tree at the same time and hides empty directories
 - adds a compact owner badge to every diff, including a hover popup with the matching rule and CODEOWNERS line link
 - also detects approver and code-owner information rendered by GitHub in the file header
-- automatically derives “Only mine” groups from GitHub’s “Owned by you” labels
+- derives unambiguous groups from GitHub’s ownership labels for the “Only mine” shortcut
 - detects direct `@username` ownership automatically
 - works with GitHub’s dynamic pull request navigation and lazily loaded diffs
 
@@ -53,12 +53,12 @@ The archive is written to `dist/chrome-github-codeowners-filter-<version>.zip`. 
 
 - Click a group to activate it; multiple active groups are combined using OR semantics.
 - **All** resets the filter.
-- **Only mine** shows groups GitHub identifies as yours plus direct `@username` ownership.
+- **Only mine** selects the corresponding owner chips and closes the popup; it does not create a separate filter mode.
 
 ## MVP limitations
 
 - The manifest is currently limited to `github.com`. A GitHub Enterprise host must be added explicitly to `host_permissions` and `content_scripts.matches`.
-- “Only mine” can derive only groups represented by files in the current pull request; complete organization-wide team discovery would require GitHub API authentication.
+- “Only mine” does not guess when an “Owned by you” label lists several possible groups and the current pull request cannot disambiguate them. Complete organization-wide team discovery would require GitHub API authentication.
 - For very large pull requests, the extension filters files already loaded into GitHub’s DOM. Newly loaded files are picked up automatically.
 
 ## Tests

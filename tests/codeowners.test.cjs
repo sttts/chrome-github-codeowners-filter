@@ -4,7 +4,7 @@ const {
   matchesOwnerFilter,
   ownersForPath,
   ownersFromLabel,
-  ownersFromOwnedByYouLabel,
+  ownersOwnedByCurrentUser,
   ownersFromTreeValue,
   parse,
   ruleForPath,
@@ -94,19 +94,25 @@ test("preview UI owner labels are parsed", () => {
   ]);
 });
 
-test("groups owned by the current user are derived from GitHub labels", () => {
+test("unambiguous groups owned by the current user are derived from GitHub labels", () => {
   assert.deepEqual(
-    ownersFromOwnedByYouLabel(
-      "Owned by you along with @ai-dynamo/dynamo-epp-codeowners and @ai-dynamo/dynamo-router-codeowners (from CODEOWNERS line 624)"
-    ),
-    [
-      "@ai-dynamo/dynamo-epp-codeowners",
-      "@ai-dynamo/dynamo-router-codeowners"
-    ]
+    ownersOwnedByCurrentUser([
+      "Owned by you along with @ai-dynamo/dynamo-docs-codeowners (from CODEOWNERS line 700)"
+    ]),
+    ["@ai-dynamo/dynamo-docs-codeowners"]
   );
   assert.deepEqual(
-    ownersFromOwnedByYouLabel("Owned by @ai-dynamo/dynamo-docs-codeowners (from CODEOWNERS line 700)"),
+    ownersOwnedByCurrentUser([
+      "Owned by you along with @ai-dynamo/dynamo-epp-codeowners and @ai-dynamo/dynamo-router-codeowners (from CODEOWNERS line 624)"
+    ]),
     []
+  );
+  assert.deepEqual(
+    ownersOwnedByCurrentUser([
+      "Owned by you along with @ai-dynamo/dynamo-epp-codeowners and @ai-dynamo/dynamo-router-codeowners (from CODEOWNERS line 624)",
+      "Owned by @ai-dynamo/dynamo-router-codeowners (from CODEOWNERS line 630)"
+    ]),
+    ["@ai-dynamo/dynamo-epp-codeowners"]
   );
 });
 
