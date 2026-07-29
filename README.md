@@ -3,6 +3,8 @@
 > [!WARNING]
 > This extension is experimental and purely vibe-coded. Use it at your own risk.
 
+![Approver filtering in GitHub’s Files changed view](docs/approver-filter.png)
+
 A small Chrome extension that filters changed files on a GitHub pull request’s **Files changed** page by approver or CODEOWNER group.
 
 ## Features
