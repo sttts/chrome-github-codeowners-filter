@@ -4,6 +4,7 @@ const {
   matchesOwnerFilter,
   ownersForPath,
   ownersFromLabel,
+  ownersFromOwnedByYouLabel,
   ownersFromTreeValue,
   parse,
   ruleForPath,
@@ -91,6 +92,22 @@ test("preview UI owner labels are parsed", () => {
   assert.deepEqual(ownersFromLabel("Code owners: @ai-dynamo/dynamo-operator-codeowners"), [
     "@ai-dynamo/dynamo-operator-codeowners"
   ]);
+});
+
+test("groups owned by the current user are derived from GitHub labels", () => {
+  assert.deepEqual(
+    ownersFromOwnedByYouLabel(
+      "Owned by you along with @ai-dynamo/dynamo-epp-codeowners and @ai-dynamo/dynamo-router-codeowners (from CODEOWNERS line 624)"
+    ),
+    [
+      "@ai-dynamo/dynamo-epp-codeowners",
+      "@ai-dynamo/dynamo-router-codeowners"
+    ]
+  );
+  assert.deepEqual(
+    ownersFromOwnedByYouLabel("Owned by @ai-dynamo/dynamo-docs-codeowners (from CODEOWNERS line 700)"),
+    []
+  );
 });
 
 test("file tree metadata supports multiple owners", () => {

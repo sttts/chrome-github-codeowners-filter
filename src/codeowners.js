@@ -140,6 +140,10 @@
     return String(label).match(/@[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)?/g) || [];
   }
 
+  function ownersFromOwnedByYouLabel(label) {
+    return /\bowned by you\b/i.test(String(label)) ? ownersFromLabel(label) : [];
+  }
+
   function ownersFromTreeValue(value) {
     return [...new Set(String(value || "").split(/[,\s]+/).filter(Boolean).map((owner) => {
       return owner.startsWith("@") || owner.includes("@") ? owner : `@${owner}`;
@@ -154,6 +158,7 @@
     compilePattern,
     matchesOwnerFilter,
     ownersFromLabel,
+    ownersFromOwnedByYouLabel,
     ownersFromTreeValue,
     ownersForPath,
     parse,

@@ -5,6 +5,7 @@
     matchesOwnerFilter,
     ownersForPath,
     ownersFromLabel,
+    ownersFromOwnedByYouLabel,
     ownersFromTreeValue,
     parse,
     ruleForPath
@@ -41,14 +42,14 @@
     rules: [],
     files: [],
     selectedOwners: new Set(),
-    myOwners: new Set(),
+    derivedOwners: new Set(),
+    onlyMineActive: false,
     currentUser: null,
     baseRef: "HEAD",
     codeownersSource: null,
     observer: null,
     refreshTimer: null,
     menuOpen: false,
-    myMenuOpen: false,
     toolbarAnchor: null,
     toolbarRoot: null,
     toolbarRow: null,
@@ -60,20 +61,6 @@
     const match = location.pathname.match(/^\/([^/]+)\/([^/]+)\/pull\/\d+\/(?:files|changes)(?:\/|$)/);
 
     return match ? { owner: match[1], name: match[2] } : null;
-  }
-
-  function storageKey() {
-    const { owner, name } = state.repository;
-
-    return `github-codeowners-filter:mine:${location.host}:${owner}/${name}`;
-  }
-
-  function storageGet(key) {
-    return new Promise((resolve) => chrome.storage.local.get([key], (result) => resolve(result[key])));
-  }
-
-  function storageSet(key, value) {
-    return new Promise((resolve) => chrome.storage.local.set({ [key]: value }, resolve));
   }
 
   function currentUser() {
@@ -113,9 +100,9 @@
       }
 
       const ref = decodeURIComponent(url.pathname.slice(blobPrefix.length, -(path.length + 1)));
-      url.hash = "";
-      url.pathname = url.pathname.replace("/blob/", "/raw/");
-      sources.push({ path, ref, url: url.href });
+      const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+      const rawUrl = `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/${encodeURIComponent(ref)}/${encodedPath}`;
+      sources.push({ path, ref, url: rawUrl });
     }
 
     return [...new Map(sources.map((source) => [source.url, source])).values()];
@@ -133,7 +120,7 @@
         return {
           path,
           ref,
-          url: `${location.origin}/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/raw/${encodeURIComponent(ref)}/${encodedPath}`
+          url: `https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/${encodeURIComponent(ref)}/${encodedPath}`
         };
       })
     ];
@@ -410,6 +397,14 @@
     return owner.toLocaleLowerCase();
   }
 
+  function deriveCurrentUserOwners() {
+    for (const badge of document.querySelectorAll(OWNER_BADGE_SELECTOR)) {
+      for (const owner of ownersFromOwnedByYouLabel(badge.getAttribute("aria-label"))) {
+        state.derivedOwners.add(normalizedOwner(owner));
+      }
+    }
+  }
+
   function displayOwner(owner) {
     if (owner === OWNERLESS) {
       return "Without approver";
@@ -450,6 +445,11 @@
     }
 
     state.files = files;
+    deriveCurrentUserOwners();
+
+    if (state.onlyMineActive) {
+      state.selectedOwners = new Set(allOwners().map(([owner]) => owner).filter(isMine));
+    }
   }
 
   function allOwners() {
@@ -471,38 +471,103 @@
   function isMine(owner) {
     const directOwner = state.currentUser && owner === `@${state.currentUser.toLocaleLowerCase()}`;
 
-    return directOwner || state.myOwners.has(owner);
+    return directOwner || state.derivedOwners.has(owner);
   }
 
   function visibleByFilter(file) {
     return matchesOwnerFilter(file.owners, state.selectedOwners);
   }
 
-  function codeownersReason(file, header) {
-    const githubOwnerBadge = header.querySelector(OWNER_BADGE_SELECTOR);
-    const githubLabel = githubOwnerBadge?.getAttribute("aria-label") || "";
-    const githubLinkElement = header.querySelector('a[href*="/CODEOWNERS" i]');
-    const linkedLine = Number(githubLinkElement?.hash.match(/^#L(\d+)/i)?.[1]) || null;
-    const githubLine = Number(githubLabel.match(/\bline\s+(\d+)\b/i)?.[1]) || linkedLine;
-    const matchedRule = githubLine
-      ? state.rules.find((rule) => rule.line === githubLine) || ruleForPath(file.path, state.rules)
-      : ruleForPath(file.path, state.rules);
-    const line = matchedRule?.line || githubLine || null;
-    const githubLink = githubLinkElement?.href;
-    let href = githubLink || null;
+  function codeownersLineHref(line, githubLink) {
+    if (githubLink) {
+      const url = new URL(githubLink.href, location.origin);
+      url.hash = line ? `L${line}` : "";
 
-    if (!href && line && state.codeownersSource) {
-      const { owner, name } = state.repository;
-      const ref = encodeURIComponent(state.baseRef);
-      const source = state.codeownersSource.split("/").map(encodeURIComponent).join("/");
-      href = `/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/blob/${ref}/${source}#L${line}`;
+      return url.href;
     }
 
-    return {
-      href,
-      line,
-      raw: matchedRule?.raw || null
-    };
+    if (!line || !state.codeownersSource) {
+      return null;
+    }
+
+    const { owner, name } = state.repository;
+    const ref = encodeURIComponent(state.baseRef);
+    const source = state.codeownersSource.split("/").map(encodeURIComponent).join("/");
+
+    return `/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/blob/${ref}/${source}#L${line}`;
+  }
+
+  function codeownersLinkForBadge(header, badge) {
+    const links = [...header.querySelectorAll('a[href*="/CODEOWNERS" i]')];
+    const badgeId = badge.id;
+
+    if (badgeId) {
+      const linked = links.find((link) => {
+        const ids = `${link.getAttribute("aria-labelledby") || ""} ${link.getAttribute("aria-describedby") || ""}`
+          .split(/\s+/);
+
+        return ids.includes(badgeId);
+      });
+
+      if (linked) {
+        return linked;
+      }
+    }
+
+    return badge.previousElementSibling?.matches?.('a[href*="/CODEOWNERS" i]')
+      ? badge.previousElementSibling
+      : links[0] || null;
+  }
+
+  function codeownersReasons(file, header) {
+    const pathRule = ruleForPath(file.path, state.rules);
+    const reasons = [];
+
+    for (const badge of header.querySelectorAll(OWNER_BADGE_SELECTOR)) {
+      const label = badge.getAttribute("aria-label") || "";
+      const githubLink = codeownersLinkForBadge(header, badge);
+      const linkedLine = Number(githubLink?.hash.match(/^#L(\d+)/i)?.[1]) || null;
+      const githubLine = Number(label.match(/\bline\s+(\d+)\b/i)?.[1]) || linkedLine;
+      const matchedRule = state.rules.find((rule) => rule.line === githubLine) || pathRule;
+      const owners = ownersFromLabel(label).map(normalizedOwner);
+
+      reasons.push({
+        owners: owners.length ? owners : (matchedRule?.owners || []).map(normalizedOwner),
+        line: matchedRule?.line || githubLine || null,
+        raw: matchedRule?.raw || null,
+        href: codeownersLineHref(matchedRule?.line || githubLine, githubLink)
+      });
+    }
+
+    if (!reasons.length && pathRule) {
+      reasons.push({
+        owners: pathRule.owners.map(normalizedOwner),
+        line: pathRule.line,
+        raw: pathRule.raw,
+        href: codeownersLineHref(pathRule.line, null)
+      });
+    }
+
+    const fileOwners = file.owners.filter((owner) => owner !== OWNERLESS);
+
+    if (reasons.length === 1) {
+      reasons[0].owners = [...new Set([...reasons[0].owners, ...fileOwners])];
+    }
+
+    const mergedReasons = new Map();
+
+    for (const reason of reasons) {
+      const key = `${reason.line || ""}\n${reason.raw || ""}\n${reason.href || ""}`;
+      const existing = mergedReasons.get(key);
+
+      if (existing) {
+        existing.owners = [...new Set([...existing.owners, ...reason.owners])];
+      } else {
+        mergedReasons.set(key, reason);
+      }
+    }
+
+    return [...mergedReasons.values()];
   }
 
   function diffStatsElement(header) {
@@ -556,37 +621,56 @@
     popup.className = "ghco-file-owner-popup";
     popup.setAttribute("role", "tooltip");
     const heading = document.createElement("strong");
-    heading.textContent = "CODEOWNER";
-    const owners = document.createElement("span");
-    owners.className = "ghco-file-owner-handles";
-    owners.textContent = file.owners.includes(OWNERLESS) ? "No owner detected" : file.owners.join(", ");
-    popup.append(heading, owners);
+    heading.textContent = "Why this file is owned";
+    popup.append(heading);
 
-    const reason = codeownersReason(file, header);
+    const reasons = codeownersReasons(file, header);
+    const fileOwners = file.owners.filter((owner) => owner !== OWNERLESS);
 
-    if (reason.raw) {
-      const reasonLabel = document.createElement("span");
-      reasonLabel.className = "ghco-file-owner-reason-label";
-      reasonLabel.textContent = "Matching rule";
-      const rule = document.createElement("code");
-      rule.textContent = reason.raw;
-      popup.append(reasonLabel, rule);
-    } else {
+    if (!fileOwners.length) {
       const fallback = document.createElement("span");
       fallback.className = "ghco-file-owner-reason";
-      fallback.textContent = file.owners.includes(OWNERLESS)
-        ? "No matching CODEOWNERS rule found."
-        : "Owner taken from the GitHub pull request view.";
+      fallback.textContent = "No matching CODEOWNERS rule found.";
       popup.append(fallback);
-    }
+    } else {
+      for (const owner of fileOwners) {
+        const ownerSection = document.createElement("span");
+        ownerSection.className = "ghco-file-owner-reasons";
+        const ownerLabel = document.createElement("strong");
+        ownerLabel.className = "ghco-file-owner-handle";
+        ownerLabel.textContent = owner;
+        ownerSection.append(ownerLabel);
+        const ownerReasons = reasons.filter((reason) => reason.owners.includes(owner));
 
-    if (reason.href && reason.line) {
-      const link = document.createElement("a");
-      link.href = reason.href;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.textContent = `${state.codeownersSource || "CODEOWNERS"} · line ${reason.line}`;
-      popup.append(link);
+        for (const reason of ownerReasons) {
+          const ruleLink = document.createElement(reason.href ? "a" : "span");
+          ruleLink.className = "ghco-file-owner-rule";
+
+          if (reason.href) {
+            ruleLink.href = reason.href;
+            ruleLink.target = "_blank";
+            ruleLink.rel = "noopener noreferrer";
+          }
+
+          const rule = document.createElement("code");
+          rule.textContent = reason.raw || "CODEOWNERS rule unavailable";
+          const reference = document.createElement("span");
+          reference.textContent = reason.line
+            ? `${state.codeownersSource || "CODEOWNERS"} · line ${reason.line}`
+            : "CODEOWNERS";
+          ruleLink.append(rule, reference);
+          ownerSection.append(ruleLink);
+        }
+
+        if (!ownerReasons.length) {
+          const unavailable = document.createElement("span");
+          unavailable.className = "ghco-file-owner-reason";
+          unavailable.textContent = "No matching CODEOWNERS rule found.";
+          ownerSection.append(unavailable);
+        }
+
+        popup.append(ownerSection);
+      }
     }
 
     popup.setAttribute("aria-label", tooltip);
@@ -604,8 +688,8 @@
       const tooltip = ownerNames.length
         ? `CODEOWNER:\n${file.owners.join("\n")}`
         : "No CODEOWNER or approver detected";
-      const reason = codeownersReason(file, header);
-      const signature = `${label}\n${tooltip}\n${reason.line || ""}\n${reason.raw || ""}`;
+      const reasons = codeownersReasons(file, header);
+      const signature = `${label}\n${tooltip}\n${JSON.stringify(reasons)}`;
       let badge = header.querySelector(".ghco-file-owner");
 
       if (!badge) {
@@ -817,13 +901,22 @@
   }
 
   function setSelectedOwners(owners) {
+    state.onlyMineActive = false;
     state.selectedOwners = new Set(owners);
+    render();
+  }
+
+  function selectOnlyMine() {
+    state.onlyMineActive = true;
+    state.selectedOwners = new Set(allOwners().map(([owner]) => owner).filter(isMine));
     render();
   }
 
   function ownerChip(owner, count) {
     const selected = state.selectedOwners.has(owner);
     const chip = button(`${displayOwner(owner)} ${count}`, "ghco-chip", () => {
+      state.onlyMineActive = false;
+
       if (selected) {
         state.selectedOwners.delete(owner);
       } else {
@@ -839,49 +932,6 @@
       : `${owner} · ${count} changed file${count === 1 ? "" : "s"}`;
 
     return chip;
-  }
-
-  function mineMenu(owners) {
-    const details = document.createElement("details");
-    details.className = "ghco-mine-menu";
-    details.open = state.myMenuOpen;
-    details.addEventListener("toggle", () => {
-      state.myMenuOpen = details.open;
-    });
-    const summary = document.createElement("summary");
-    summary.textContent = "My groups";
-    details.append(summary);
-
-    const panel = document.createElement("div");
-    panel.className = "ghco-menu-panel";
-    const hint = document.createElement("p");
-    hint.textContent = "Select your groups. The choice is saved for this repository and applied immediately.";
-    panel.append(hint);
-
-    for (const [owner, count] of owners.filter(([entry]) => entry !== OWNERLESS)) {
-      const label = document.createElement("label");
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = state.myOwners.has(owner);
-      checkbox.addEventListener("change", async () => {
-        if (checkbox.checked) {
-          state.myOwners.add(owner);
-        } else {
-          state.myOwners.delete(owner);
-        }
-
-        await storageSet(storageKey(), [...state.myOwners]);
-        state.selectedOwners = new Set(allOwners().map(([entry]) => entry).filter(isMine));
-        render();
-      });
-      label.append(checkbox, document.createTextNode(`${displayOwner(owner)} (${count})`));
-      label.title = owner;
-      panel.append(label);
-    }
-
-    details.append(panel);
-
-    return details;
   }
 
   function accessibleControlText(control) {
@@ -1041,7 +1091,6 @@
 
     if (existingRoot) {
       state.menuOpen = existingRoot.querySelector(".ghco-owner-filter")?.open || false;
-      state.myMenuOpen = existingRoot.querySelector(".ghco-mine-menu")?.open || false;
       clearToolbarReservation();
       existingRoot.remove();
       state.toolbarRoot = null;
@@ -1082,17 +1131,18 @@
     allButton.classList.toggle("ghco-action-selected", state.selectedOwners.size === 0);
 
     const mine = [...new Set(owners.map(([owner]) => owner).filter(isMine))];
-    const mineButton = button("Only mine", "ghco-action", () => setSelectedOwners(mine));
+    const mineButton = button("Only mine", "ghco-action", selectOnlyMine);
+    mineButton.classList.toggle("ghco-action-selected", state.onlyMineActive);
     mineButton.disabled = mine.length === 0;
     mineButton.title = mine.length
-      ? `Direct ownership and saved groups: ${mine.map(displayOwner).join(", ")}`
-      : "Select at least one group under “My groups” first.";
+      ? `Detected from GitHub: ${mine.map(displayOwner).join(", ")}`
+      : "GitHub does not mark you as an owner of any file in this pull request.";
     const source = document.createElement("span");
     source.className = "ghco-source";
     source.textContent = state.codeownersSource
       ? `from ${state.codeownersSource} @ ${state.baseRef}`
       : "from the pull request view";
-    firstRow.append(title, allButton, mineButton, source, mineMenu(owners));
+    firstRow.append(title, allButton, mineButton, source);
 
     const chips = document.createElement("div");
     chips.className = "ghco-chips";
@@ -1110,6 +1160,23 @@
     root.classList.toggle("ghco-align-right", summaryRect.left + 440 > window.innerWidth);
 
     applyFilter();
+  }
+
+  function closeFilterOnOutsideClick(event) {
+    const root = document.getElementById(UI_ID);
+
+    if (!root || root.contains(event.target)) {
+      return;
+    }
+
+    const filter = root.querySelector(".ghco-owner-filter");
+
+    if (!filter?.open) {
+      return;
+    }
+
+    filter.open = false;
+    state.menuOpen = false;
   }
 
   function scheduleRefresh() {
@@ -1160,8 +1227,9 @@
     state.rules = [];
     state.files = [];
     state.selectedOwners.clear();
+    state.derivedOwners.clear();
+    state.onlyMineActive = false;
     state.menuOpen = false;
-    state.myMenuOpen = false;
     state.toolbarAnchor = null;
     state.toolbarRoot = null;
     clearToolbarReservation();
@@ -1173,8 +1241,6 @@
 
     state.currentUser = currentUser();
     state.baseRef = baseRef();
-    const savedOwners = await storageGet(storageKey());
-    state.myOwners = new Set((savedOwners || []).map(normalizedOwner));
     const codeowners = await fetchCodeowners();
     state.codeownersSource = codeowners?.path || null;
     state.baseRef = codeowners?.ref || state.baseRef;
@@ -1184,5 +1250,6 @@
     observePage();
   }
 
+  document.addEventListener("click", closeFilterOnOutsideClick);
   restart();
 })();

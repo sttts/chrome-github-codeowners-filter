@@ -1,13 +1,11 @@
 {
   "manifest_version": 3,
   "name": "GitHub CODEOWNERS Filter",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Filters changed GitHub pull request files by CODEOWNER and approver groups.",
-  "permissions": [
-    "storage"
-  ],
   "host_permissions": [
-    "https://github.com/*"
+    "https://github.com/*",
+    "https://raw.githubusercontent.com/*"
   ],
   "content_scripts": [
     {
