@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "GitHub CODEOWNERS Filter",
+  "version": "0.1.1",
+  "description": "Filters changed GitHub pull request files by CODEOWNER and approver groups.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://github.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://github.com/*/*/pull/*"
+      ],
+      "js": [
+        "src/codeowners.js",
+        "src/content.js"
+      ],
+      "css": [
+        "src/styles.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
