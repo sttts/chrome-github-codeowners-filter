@@ -10,6 +10,6 @@ archive="dist/chrome-github-codeowners-filter-${version}.zip"
 
 mkdir -p dist
 rm -f "$archive"
-zip -q -r "$archive" manifest.json src
+zip -q -r "$archive" manifest.json assets/icons src
 
 echo "$archive"
