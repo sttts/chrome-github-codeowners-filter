@@ -7,6 +7,8 @@
 
 A small Chrome extension that filters changed files on a GitHub pull request’s **Files changed** page by approver or CODEOWNER group.
 
+GitHub CODEOWNERS Filter is an independent open-source project and is not affiliated with or endorsed by GitHub. See the [privacy policy](PRIVACY.md) for details about local data processing and permissions.
+
 ## Features
 
 - reads `.github/CODEOWNERS`, `CODEOWNERS`, or `docs/CODEOWNERS` from the pull request’s base branch
@@ -52,7 +54,7 @@ After changing the extension, press its reload button on `chrome://extensions`, 
 npm run package
 ```
 
-The archive is written to `dist/chrome-github-codeowners-filter-<version>.zip`. It contains only the extension manifest and runtime sources.
+The archive is written to `dist/chrome-github-codeowners-filter-<version>.zip`. It contains only the extension manifest, icons, and runtime sources.
 
 ## Usage
 
