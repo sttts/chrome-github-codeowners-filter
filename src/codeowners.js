@@ -175,9 +175,24 @@
     return selectedOwners.size === 0 || owners.some((owner) => selectedOwners.has(owner));
   }
 
+  function mergeFileOwnership(...sources) {
+    const files = new Map();
+
+    for (const source of sources) {
+      for (const file of source) {
+        if (file?.path && Array.isArray(file.owners)) {
+          files.set(file.path, file);
+        }
+      }
+    }
+
+    return [...files.values()];
+  }
+
   return {
     compilePattern,
     matchesOwnerFilter,
+    mergeFileOwnership,
     ownersFromLabel,
     ownersOwnedByCurrentUser,
     ownersFromTreeValue,

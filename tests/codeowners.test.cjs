@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   matchesOwnerFilter,
+  mergeFileOwnership,
   ownersForPath,
   ownersFromLabel,
   ownersOwnedByCurrentUser,
@@ -132,4 +133,19 @@ test("multi-select uses OR semantics for shared files", () => {
   assert.equal(matchesOwnerFilter(owners, new Set(["@example/review-planner-codeowners"])), true);
   assert.equal(matchesOwnerFilter(owners, new Set(["@example/review-operator-codeowners"])), true);
   assert.equal(matchesOwnerFilter(owners, new Set(["@example/review-runtime-codeowners"])), false);
+});
+
+test("tree-only files contribute owners while rendered diffs stay authoritative", () => {
+  const treeFiles = [
+    { path: "src/rendered.js", owners: ["@example/tree"] },
+    { path: "src/tree-only.js", owners: ["@example/tree-only"] }
+  ];
+  const renderedFiles = [
+    { path: "src/rendered.js", owners: ["@example/rendered"] }
+  ];
+
+  assert.deepEqual(mergeFileOwnership(treeFiles, renderedFiles), [
+    { path: "src/rendered.js", owners: ["@example/rendered"] },
+    { path: "src/tree-only.js", owners: ["@example/tree-only"] }
+  ]);
 });

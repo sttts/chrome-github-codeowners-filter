@@ -3,7 +3,7 @@
 ## Product details
 
 - **Name:** GitHub CODEOWNERS Filter
-- **Version:** 0.1.5
+- **Version:** 0.1.6
 - **Language:** English
 - **Category:** Developer Tools
 - **Homepage:** https://github.com/sttts/chrome-github-codeowners-filter

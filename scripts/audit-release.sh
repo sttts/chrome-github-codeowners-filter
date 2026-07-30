@@ -78,6 +78,7 @@ required_entries=(
   "assets/icons/icon-128.png"
   "src/codeowners.js"
   "src/content.js"
+  "src/navigation.js"
   "src/styles.css"
 )
 
@@ -90,7 +91,7 @@ done
 
 unexpected_entries="$(
   printf '%s\n' "$archive_entries" |
-    grep -Ev '^(manifest\.json|assets/icons/?|assets/icons/icon-(16|32|48|128)\.png|src/?|src/(codeowners|content)\.js|src/styles\.css)$' ||
+    grep -Ev '^(manifest\.json|assets/icons/?|assets/icons/icon-(16|32|48|128)\.png|src/?|src/(codeowners|content|navigation)\.js|src/styles\.css)$' ||
     true
 )"
 

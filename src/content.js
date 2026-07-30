@@ -3,6 +3,7 @@
 
   const {
     matchesOwnerFilter,
+    mergeFileOwnership,
     ownersForPath,
     ownersFromLabel,
     ownersOwnedByCurrentUser,
@@ -10,6 +11,10 @@
     parse,
     ruleForPath
   } = globalThis.GitHubCodeowners;
+  const {
+    pullRequestKey,
+    pullRequestRoute
+  } = globalThis.GitHubNavigation;
   const OWNERLESS = "__without_owner__";
   const OWNER_BADGE_SELECTOR = [
     '[aria-label^="Owned by "]',
@@ -53,13 +58,14 @@
     toolbarRoot: null,
     toolbarRow: null,
     toolbarPositionListenersInstalled: false,
+    activePullRequest: pullRequestKey(location.href),
     lastUrl: location.href
   };
 
   function repositoryFromLocation() {
-    const match = location.pathname.match(/^\/([^/]+)\/([^/]+)\/pull\/\d+\/(?:files|changes)(?:\/|$)/);
+    const route = pullRequestRoute(location.href);
 
-    return match ? { owner: match[1], name: match[2] } : null;
+    return route ? { owner: route.owner, name: route.name } : null;
   }
 
   function baseRef() {
@@ -449,7 +455,7 @@
   function allOwners() {
     const counts = new Map();
 
-    for (const file of state.files) {
+    for (const file of mergeFileOwnership(treeFileOwnership(), state.files)) {
       for (const owner of file.owners) {
         counts.set(owner, (counts.get(owner) || 0) + 1);
       }
@@ -738,10 +744,11 @@
       item.dataset.filePath,
       item.dataset.path,
       item.dataset.tagsearchPath,
+      item.dataset.filterableItemText,
       pathNode?.dataset.filePath,
       pathNode?.dataset.path,
       pathNode?.dataset.tagsearchPath,
-      pathNode?.textContent
+      pathNode?.dataset.filterableItemText
     ];
 
     for (const value of directValues) {
@@ -775,7 +782,15 @@
         || diffElement.contains(entry.element);
     });
 
-    return file?.path || null;
+    if (file?.path) {
+      return file.path;
+    }
+
+    return cleanPath(
+      pathNode?.getAttribute("aria-label")
+      || pathNode?.getAttribute("title")
+      || pathNode?.textContent
+    );
   }
 
   function treeItemOwners(item, path) {
@@ -813,6 +828,29 @@
     return item.dataset.treeEntryType === "directory"
       || item.hasAttribute("aria-expanded")
       || Boolean(container.querySelector(":scope > [role='group'], :scope > ul[role='group']"));
+  }
+
+  function treeFileOwnership() {
+    const files = [];
+
+    for (const root of fileTreeRoots()) {
+      for (const item of root.querySelectorAll("[role='treeitem']")) {
+        const container = treeItemContainer(item);
+
+        if (isTreeDirectory(item, container)) {
+          continue;
+        }
+
+        const path = treeItemPath(item);
+        const owners = treeItemOwners(item, path);
+
+        if (path && owners) {
+          files.push({ path, owners });
+        }
+      }
+    }
+
+    return files;
   }
 
   function clearTreeFilter() {
@@ -1085,11 +1123,12 @@
       state.toolbarRoot = null;
     }
 
-    if (!state.files.length) {
+    const owners = allOwners();
+
+    if (!state.files.length && !owners.length) {
       return;
     }
 
-    const owners = allOwners();
     const root = document.createElement("div");
     root.id = UI_ID;
     root.setAttribute("aria-label", "CODEOWNERS file filter");
@@ -1173,8 +1212,11 @@
     state.refreshTimer = setTimeout(() => {
       if (location.href !== state.lastUrl) {
         state.lastUrl = location.href;
-        restart();
-        return;
+
+        if (pullRequestKey(location.href) !== state.activePullRequest) {
+          restart();
+          return;
+        }
       }
 
       scanFiles();
@@ -1212,6 +1254,7 @@
       file.hideElement.classList.remove("ghco-hidden");
     }
 
+    state.activePullRequest = pullRequestKey(location.href);
     state.repository = repositoryFromLocation();
     state.rules = [];
     state.files = [];
