@@ -80,56 +80,56 @@ vendor/
 });
 
 test("GitHub badges with multiple owners are parsed", () => {
-  const label = "Owned by @ai-dynamo/dynamo-planner-codeowners and @ai-dynamo/dynamo-operator-codeowners (from CODEOWNERS line 695)";
+  const label = "Owned by @example/review-planner-codeowners and @example/review-operator-codeowners (from CODEOWNERS line 695)";
 
   assert.deepEqual(ownersFromLabel(label), [
-    "@ai-dynamo/dynamo-planner-codeowners",
-    "@ai-dynamo/dynamo-operator-codeowners"
+    "@example/review-planner-codeowners",
+    "@example/review-operator-codeowners"
   ]);
 });
 
 test("preview UI owner labels are parsed", () => {
-  assert.deepEqual(ownersFromLabel("Code owners: @ai-dynamo/dynamo-operator-codeowners"), [
-    "@ai-dynamo/dynamo-operator-codeowners"
+  assert.deepEqual(ownersFromLabel("Code owners: @example/review-operator-codeowners"), [
+    "@example/review-operator-codeowners"
   ]);
 });
 
 test("unambiguous groups owned by the current user are derived from GitHub labels", () => {
   assert.deepEqual(
     ownersOwnedByCurrentUser([
-      "Owned by you along with @ai-dynamo/dynamo-docs-codeowners (from CODEOWNERS line 700)"
+      "Owned by you along with @example/review-docs-codeowners (from CODEOWNERS line 700)"
     ]),
-    ["@ai-dynamo/dynamo-docs-codeowners"]
+    ["@example/review-docs-codeowners"]
   );
   assert.deepEqual(
     ownersOwnedByCurrentUser([
-      "Owned by you along with @ai-dynamo/dynamo-epp-codeowners and @ai-dynamo/dynamo-router-codeowners (from CODEOWNERS line 624)"
+      "Owned by you along with @example/review-backend-codeowners and @example/review-frontend-codeowners (from CODEOWNERS line 624)"
     ]),
     []
   );
   assert.deepEqual(
     ownersOwnedByCurrentUser([
-      "Owned by you along with @ai-dynamo/dynamo-epp-codeowners and @ai-dynamo/dynamo-router-codeowners (from CODEOWNERS line 624)",
-      "Owned by @ai-dynamo/dynamo-router-codeowners (from CODEOWNERS line 630)"
+      "Owned by you along with @example/review-backend-codeowners and @example/review-frontend-codeowners (from CODEOWNERS line 624)",
+      "Owned by @example/review-frontend-codeowners (from CODEOWNERS line 630)"
     ]),
-    ["@ai-dynamo/dynamo-epp-codeowners"]
+    ["@example/review-backend-codeowners"]
   );
 });
 
 test("file tree metadata supports multiple owners", () => {
   assert.deepEqual(
-    ownersFromTreeValue("ai-dynamo/dynamo-planner-codeowners,ai-dynamo/dynamo-operator-codeowners"),
+    ownersFromTreeValue("example/review-planner-codeowners,example/review-operator-codeowners"),
     [
-      "@ai-dynamo/dynamo-planner-codeowners",
-      "@ai-dynamo/dynamo-operator-codeowners"
+      "@example/review-planner-codeowners",
+      "@example/review-operator-codeowners"
     ]
   );
 });
 
 test("multi-select uses OR semantics for shared files", () => {
-  const owners = ["@ai-dynamo/dynamo-planner-codeowners", "@ai-dynamo/dynamo-operator-codeowners"];
+  const owners = ["@example/review-planner-codeowners", "@example/review-operator-codeowners"];
 
-  assert.equal(matchesOwnerFilter(owners, new Set(["@ai-dynamo/dynamo-planner-codeowners"])), true);
-  assert.equal(matchesOwnerFilter(owners, new Set(["@ai-dynamo/dynamo-operator-codeowners"])), true);
-  assert.equal(matchesOwnerFilter(owners, new Set(["@ai-dynamo/dynamo-runtime-codeowners"])), false);
+  assert.equal(matchesOwnerFilter(owners, new Set(["@example/review-planner-codeowners"])), true);
+  assert.equal(matchesOwnerFilter(owners, new Set(["@example/review-operator-codeowners"])), true);
+  assert.equal(matchesOwnerFilter(owners, new Set(["@example/review-runtime-codeowners"])), false);
 });

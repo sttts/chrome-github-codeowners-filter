@@ -410,7 +410,7 @@
 
     const name = owner.replace(/^@/, "").split("/").at(-1);
 
-    return name.replace(/^dynamo-/, "").replace(/-codeowners$/, "");
+    return name.replace(/-codeowners$/, "");
   }
 
   function scanFiles() {

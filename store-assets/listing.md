@@ -3,7 +3,7 @@
 ## Product details
 
 - **Name:** GitHub CODEOWNERS Filter
-- **Version:** 0.1.4
+- **Version:** 0.1.5
 - **Language:** English
 - **Category:** Developer Tools
 - **Homepage:** https://github.com/sttts/chrome-github-codeowners-filter
@@ -72,7 +72,7 @@ No user data is collected or transmitted to the developer or third parties. GitH
 
 ## Reviewer test instructions
 
-1. Open https://github.com/ai-dynamo/dynamo/pull/10494/files.
+1. Open a public pull request in a repository with a CODEOWNERS file.
 2. Open the Files changed tab.
 3. Click the blue Approver button next to GitHub's file filter.
 4. Select one or more owner groups.

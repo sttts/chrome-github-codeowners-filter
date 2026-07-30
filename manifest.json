@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GitHub CODEOWNERS Filter",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Filters changed GitHub pull request files by CODEOWNER and approver groups.",
   "icons": {
     "16": "assets/icons/icon-16.png",
